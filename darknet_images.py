@@ -2,28 +2,25 @@ import os
 import cv2
 import numpy as np
 import darknet
-
+import pdb
 import matplotlib.pyplot as plt
-from utils import number_config, license_config, data_number, data_license, number_weights, license_weights, thresh
+from utils import number_config, license_config, data_number, data_license, number_weights, license_weights, thresh,network_size
 from PIL import Image, ImageDraw, ImageFont
 
 
-font = ImageFont.truetype('arial.ttf',30) # font size
-network_size = 416
+
+
 
 def image_detection(image_or_path, network, class_names, class_colors, thresh):
-    # Darknet doesn't accept numpy images.
-    # Create one with image we reuse for each detect
-    width = darknet.network_width(network)
-    height = darknet.network_height(network)
-    darknet_image = darknet.make_image(width, height, 3)
+
+    darknet_image = darknet.make_image(network_size, network_size, 3)
 
     if isinstance(image_or_path, str):
         image = cv2.imread(image_or_path)
     else:
         image = image_or_path
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    image_resized = cv2.resize(image_rgb, (width, height),
+    image_resized = cv2.resize(image_rgb, (network_size, network_size),
                                interpolation=cv2.INTER_LINEAR)
 
     darknet.copy_image_from_bytes(darknet_image, image_resized.tobytes())
@@ -67,24 +64,27 @@ def main():
             continue
         
         image_s = cv2.imread(image_name)
-
+        
         cropped_images=[]
         bcords=[]
         boxes = [] 
         results = []
-
-        detections = image_detection(image_s, network_plate, class_names_plate, class_colors_plate, thresh)
-         
         width, height = image_s.shape[1], image_s.shape[0]
+        fontsize = int(5 * height / 100)
+        font = ImageFont.truetype('arial.ttf',fontsize) # font size
         scaled_width = width/network_size
         scaled_height = height/network_size
+
+
          
+         
+        detections = image_detection(image_s, network_plate, class_names_plate, class_colors_plate, thresh)
         if len(detections)>0:
 
          
                 for detection in detections:
-                    coordinates = list(detection[2])  # Pobranie trzeciego elementu (krotek) z danej krotki
-                    boxes.append(coordinates)  # Dodanie koordynatów do nowej tablicy
+                    coordinates = list(detection[2])
+                    boxes.append(coordinates)  
        
 
                 for box in boxes:
@@ -100,6 +100,8 @@ def main():
                 for crop in cropped_images:
                     recognition = image_detection(crop,network_number,class_names_number,class_colors_number,thresh)
                     result, avg_score = read_license_plate(crop.shape,recognition)
+                    if len(result) == 0:
+                        continue
                     results.append(result) 
         
                 img= Image.fromarray(image_s,'RGB')
@@ -107,13 +109,13 @@ def main():
                 
                 for idx, bcord in enumerate(bcords):
                     im1.text((bcord[0],bcord[3]+3),results[idx],font=font,fill=(255,255,255),stroke_width=3,stroke_fill=(0,0,0))
-                    im1.text((bcord[0],bcord[1]-30),"license_plate "+"{:.2f}".format(avg_score)+'%',font=font,stroke_width=3,stroke_fill=(0,0,0))
+                    im1.text((bcord[0],bcord[1]-fontsize),"license_plate "+"{:.2f}".format(avg_score)+'%',font=font,stroke_width=3,stroke_fill=(0,0,0))
             
                 imp=np.array(img)
 
                 for idx, bcord in enumerate(bcords):
                     imp = cv2.rectangle(imp,(int(bcord[0]),int(bcord[1])),(int(bcord[2]),int(bcord[3])),(255,0,0),3)
-
+ 
         plt.figure()
         plt.imshow(cv2.cvtColor(imp,cv2.COLOR_BGR2RGB))
         plt.show()    

@@ -6,4 +6,5 @@ data_license = "./cfg/obj_L.data"
 
 number_weights = 'number.weights'
 license_weights = 'plate.weights'
-thresh = 0.35
+thresh = 0.45
+network_size = 416
